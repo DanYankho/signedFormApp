@@ -282,7 +282,7 @@
                 </svg>
                 <div>
                     <p class="font-medium mb-1">Configuration Required</p>
-                    <p class="text-blue-700">Update the <strong>GOOGLE_APPS_SCRIPT_URL</strong> in the script section with your deployed Google Apps Script URL.</p>
+                    <p class="text-blue-700">Update the <strong>GOOGLE_APPS_SCRIPT_URL</strong> below with your deployed Google Apps Script URL.</p>
                 </div>
             </div>
         </div>
@@ -294,8 +294,8 @@
         // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWQI441LNpX0v7w_0HmK08s5IGhr_4oUC6WsdxK_X5hNB_5Y9MyiwX4inkPPKsQrXmSg/exec';
         
-        // Set to false after configuring the URL above
-        const USE_TEST_MODE = true;
+        // IMPORTANT: Set to false after configuring the URL above
+        const USE_TEST_MODE = false;
 
         // ==================== STATE MANAGEMENT ====================
         let signaturePad;
@@ -497,7 +497,9 @@
                 reader.onloadend = async function() {
                     const base64Data = reader.result.split(',')[1];
                     
+                    // ✅ FIX 1: Add API key to payload (MUST match backend)
                     const payload = {
+                        apiKey: "D4nF0rd_ConsentApp_9x!3KpL@2026#Secure", // 🔑 MUST MATCH BACKEND
                         fullName: formData.fullName,
                         email: formData.email,
                         phone: formData.phone || 'Not provided',
@@ -511,19 +513,39 @@
                     
                     try {
                         if (USE_TEST_MODE || GOOGLE_APPS_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
-                            console.log('Test Mode - Payload:', payload);
+                            console.log('⚠️ Test Mode - Payload (would send to backend):', payload);
                             await new Promise(resolve => setTimeout(resolve, 1500));
-                            resolve({ status: 'test', message: 'Test mode - Configure Google Apps Script URL' });
+                            resolve({ 
+                                status: 'test', 
+                                message: 'Test mode - Configure Google Apps Script URL',
+                                documentId: formData.documentId 
+                            });
                         } else {
+                            // ✅ FIX 2: REMOVE 'no-cors' and handle response properly
                             const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                                 method: 'POST',
-                                mode: 'no-cors',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 
+                                    'Content-Type': 'application/json'
+                                },
                                 body: JSON.stringify(payload)
                             });
-                            resolve({ status: 'success', message: 'Form submitted successfully' });
+                            
+                            // Check if response is ok
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            }
+                            
+                            // Parse JSON response from backend
+                            const result = await response.json();
+                            
+                            if (!result.success) {
+                                throw new Error(result.error || "Submission failed");
+                            }
+                            
+                            resolve(result);
                         }
                     } catch (error) {
+                        console.error('Submit error:', error);
                         reject(error);
                     }
                 };
@@ -571,6 +593,9 @@
             document.getElementById('successMessage').classList.add('hidden');
             
             try {
+                // Sanitize filename (✅ Optional smart fix)
+                const safeName = fullName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+                
                 formData = {
                     fullName: fullName,
                     email: email,
@@ -578,7 +603,8 @@
                     dob: document.getElementById('dob').value,
                     timestamp: new Date().toISOString(),
                     userAgent: navigator.userAgent,
-                    documentId: generateDocumentId()
+                    documentId: generateDocumentId(),
+                    safeName: safeName
                 };
                 
                 const pdfDoc = await generatePDF();
@@ -591,9 +617,15 @@
                 const successText = document.getElementById('successMessageText');
                 
                 if (result.status === 'test') {
-                    successText.innerHTML = '✅ Form completed in test mode!<br><br>📧 To enable email sending, update the GOOGLE_APPS_SCRIPT_URL with your deployed script URL.<br><br>💾 You can download the PDF for your records.';
+                    successText.innerHTML = `✅ Form completed in test mode!<br><br>
+                    📧 <strong>Document ID:</strong> ${result.documentId}<br>
+                    To enable actual email sending, update the GOOGLE_APPS_SCRIPT_URL with your deployed script URL.<br><br>
+                    💾 You can download the PDF for your records.`;
                 } else {
-                    successText.innerHTML = '✅ Your signed consent form has been sent to the administrator! A confirmation email has also been sent to your email address.<br><br>💾 You can download the PDF for your records.';
+                    successText.innerHTML = `✅ Your signed consent form has been sent to the administrator!<br><br>
+                    📄 <strong>Document ID:</strong> ${result.documentId}<br>
+                    A confirmation email has also been sent to your email address.<br><br>
+                    💾 You can download the PDF for your records.`;
                 }
                 
                 successMsg.classList.remove('hidden');
@@ -601,7 +633,7 @@
                 
             } catch (error) {
                 console.error('Submission error:', error);
-                showError('Failed to submit form. Please try again or download the PDF and email it manually.');
+                showError(`Failed to submit form: ${error.message}. Please try again or download the PDF and email it manually.`);
             } finally {
                 submitText.classList.remove('hidden');
                 submitSpinner.classList.add('hidden');
@@ -611,7 +643,9 @@
         
         function downloadPDF() {
             if (generatedPDF) {
-                const fileName = 'Consent_Form_' + formData.fullName.replace(/\s+/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf';
+                // ✅ Fixed: Sanitize filename properly
+                const safeName = formData.safeName || formData.fullName?.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_') || 'consent';
+                const fileName = `Consent_Form_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`;
                 generatedPDF.save(fileName);
             } else {
                 showError('No PDF generated. Please complete the form again.');
@@ -655,7 +689,7 @@
             
             setTimeout(() => {
                 errorMsg.classList.add('hidden');
-            }, 5000);
+            }, 8000);
         }
     </script>
 </body>
