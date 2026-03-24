@@ -204,11 +204,8 @@
     <script>
         // =====================================================================
         // CONFIGURATION
-        // STEP 1: Deploy your Google Apps Script backend
-        // STEP 2: Paste the Web App URL below (replace the placeholder)
         // =====================================================================
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWQI441LNpX0v7w_0HmK08s5IGhr_4oUC6WsdxK_X5hNB_5Y9MyiwX4inkPPKsQrXmSg/exec';
-
         const API_KEY = 'D4nF0rd_ConsentApp_9x!3KpL@2026#Secure';
 
         // =====================================================================
@@ -224,6 +221,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             initSignaturePad();
             initConnectionMonitor();
+            document.getElementById('dob').valueAsDate = new Date();
         });
 
         // =====================================================================
@@ -232,18 +230,18 @@
         function initSignaturePad() {
             const canvas = document.getElementById('signaturePad');
 
-            function resize() {
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                const w = canvas.offsetWidth;
-                const h = 200;
-                canvas.width = w * ratio;
-                canvas.height = h * ratio;
-                const ctx = canvas.getContext('2d');
-                ctx.scale(ratio, ratio);
+            function resizeCanvas() {
+                const width = canvas.clientWidth;
+                const height = 200;
+                canvas.width = width;
+                canvas.height = height;
+                
                 if (signaturePad) {
                     const data = signaturePad.toData();
                     signaturePad.clear();
-                    if (data && data.length) signaturePad.fromData(data);
+                    if (data && data.length > 0) {
+                        signaturePad.fromData(data);
+                    }
                 }
             }
 
@@ -255,8 +253,34 @@
                 velocityFilterWeight: 0.7
             });
 
-            window.addEventListener('resize', resize);
-            resize();
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                });
+                canvas.dispatchEvent(mouseEvent);
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                });
+                canvas.dispatchEvent(mouseEvent);
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                canvas.dispatchEvent(new MouseEvent('mouseup', {}));
+            });
         }
 
         function clearSignature() {
@@ -298,7 +322,7 @@
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
             const W = 210;
 
-            // Header band
+            // Header
             doc.setFillColor(37, 99, 235);
             doc.rect(0, 0, W, 38, 'F');
             doc.setTextColor(255, 255, 255);
@@ -314,7 +338,7 @@
             let y = 50;
             doc.setTextColor(30, 30, 30);
 
-            // Personal info
+            // Personal Info
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.text('Personal Information', 20, y);
@@ -342,7 +366,7 @@
 
             y += 6;
 
-            // Consent text
+            // Consent
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(30, 30, 30);
@@ -403,7 +427,67 @@
         }
 
         // =====================================================================
-        // SUBMIT
+        // GENERATE SIGNATURE HASH (for audit trail)
+        // =====================================================================
+        async function generateSignatureHash(formData) {
+            const hashString = formData.fullName + formData.email + formData.timestamp;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(hashString);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
+        }
+
+        // =====================================================================
+        // SUBMIT TO GOOGLE APPS SCRIPT
+        // =====================================================================
+        async function submitToGoogleAppsScript(pdfBlob, formData) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onloadend = async function() {
+                    const base64Data = reader.result.split(',')[1];
+                    const signatureHash = await generateSignatureHash(formData);
+                    
+                    const payload = {
+                        apiKey: API_KEY,
+                        fullName: formData.fullName,
+                        email: formData.email,
+                        phone: formData.phone || 'Not provided',
+                        dob: formData.dob || 'Not provided',
+                        timestamp: formData.timestamp,
+                        documentId: formData.documentId,
+                        userAgent: formData.userAgent,
+                        pdfBase64: base64Data,
+                        signatureBase64: signaturePad.toDataURL('image/png'),
+                        signatureHash: signatureHash
+                    };
+                    
+                    try {
+                        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            throw new Error(result.error || "Submission failed");
+                        }
+                        
+                        resolve(result);
+                    } catch (error) {
+                        console.error('Submit error:', error);
+                        reject(error);
+                    }
+                };
+                
+                reader.readAsDataURL(pdfBlob);
+            });
+        }
+
+        // =====================================================================
+        // FORM SUBMISSION
         // =====================================================================
         async function submitForm() {
             hideMessages();
@@ -414,10 +498,6 @@
             if (!agreed)  { showError('Please check the consent agreement box.'); return; }
             if (!signed)  { showError('Please provide your signature.'); return; }
             if (!navigator.onLine) { showError('You are offline. Please reconnect and try again.'); return; }
-            if (GOOGLE_APPS_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
-                showError('The form has not been configured yet. Please set the Google Apps Script URL in index.html.');
-                return;
-            }
 
             setLoading(true);
 
@@ -434,54 +514,20 @@
 
                 const pdfDoc = await generatePDF();
                 generatedPDF = pdfDoc;
-
                 const pdfBlob = pdfDoc.output('blob');
-                const b64 = await blobToBase64(pdfBlob);
-
-                const payload = {
-                    apiKey: API_KEY,
-                    fullName: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone || 'Not provided',
-                    dob: formData.dob || 'Not provided',
-                    timestamp: formData.timestamp,
-                    documentId: formData.documentId,
-                    userAgent: formData.userAgent,
-                    pdfBase64: b64,
-                    signatureBase64: signaturePad.toDataURL('image/png')
-                };
-
-                // Note: no Content-Type header to avoid CORS preflight with Google Apps Script
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-
-                let result;
-                try {
-                    result = await response.json();
-                } catch (e) {
-                    // Google sometimes returns a redirect — treat any 200 as success
-                    if (response.ok || response.status === 0) {
-                        result = { success: true, documentId: formData.documentId };
-                    } else {
-                        throw new Error('Server returned status ' + response.status);
-                    }
-                }
-
-                if (result && result.success === false) {
-                    throw new Error(result.error || 'Submission rejected by server.');
-                }
+                
+                const result = await submitToGoogleAppsScript(pdfBlob, formData);
 
                 document.getElementById('successText').innerHTML =
-                    `Your signed consent has been recorded and the PDF has been emailed to you.<br>
-                    <span class="font-medium">Document ID: ${formData.documentId}</span>`;
+                    `✅ Your signed consent has been recorded.<br>
+                    <span class="font-medium">Document ID: ${result.documentId}</span><br>
+                    A confirmation email has been sent to ${formData.email}`;
                 document.getElementById('successMessage').classList.remove('hidden');
                 document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             } catch (err) {
                 console.error('Submission error:', err);
-                showError('Submission failed: ' + err.message + '. Please try again, or download the PDF and submit it manually.');
+                showError('Submission failed: ' + err.message + '. Please try again.');
             } finally {
                 setLoading(false);
             }
@@ -490,15 +536,6 @@
         // =====================================================================
         // HELPERS
         // =====================================================================
-        function blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const r = new FileReader();
-                r.onloadend = () => resolve(r.result.split(',')[1]);
-                r.onerror = reject;
-                r.readAsDataURL(blob);
-            });
-        }
-
         function setLoading(on) {
             document.getElementById('submitBtn').disabled = on;
             document.getElementById('submitText').classList.toggle('hidden', on);
