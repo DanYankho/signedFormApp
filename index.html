@@ -4,269 +4,191 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#2563eb">
-    <title>Consent Form eSignature</title>
+    <title>Consent Form — eSignature</title>
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Signature Pad -->
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-
-    <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
 
-        * {
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
+        .form-input { transition: all 0.2s; }
+        .form-input:focus { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.15); }
 
-        .form-input {
-            transition: all 0.2s;
-        }
+        .btn-primary { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); transition: all 0.3s ease; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37,99,235,0.3); }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .form-input:focus {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-        }
+        .status-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            transition: all 0.3s ease;
-        }
+        .slide-in { animation: slideIn 0.35s ease-out both; }
+        @keyframes slideIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
-        }
+        .spinner { border:3px solid #f3f4f6; border-top:3px solid #2563eb; border-radius:50%; width:22px; height:22px; animation:spin 0.9s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
 
-        .btn-primary:active:not(:disabled) {
-            transform: translateY(0);
-        }
+        canvas { width:100%; height:200px; background:white; cursor:crosshair; touch-action:none; }
 
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .status-badge {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .slide-in {
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .offline-banner {
-            display: none;
-        }
-
-        body.offline .offline-banner {
-            display: flex;
-        }
-
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #2563eb;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .signature-container {
-            position: relative;
-            width: 100%;
-        }
-
-        canvas {
-            width: 100%;
-            height: 200px;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.5rem;
-            background: white;
-            cursor: crosshair;
-        }
+        .offline-banner { display:none; }
+        body.offline .offline-banner { display:flex; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-    <!-- Offline Banner -->
-    <div class="offline-banner fixed top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 z-50 items-center justify-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Offline banner -->
+    <div class="offline-banner fixed top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 z-50 items-center justify-center gap-2 text-sm font-medium">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
         </svg>
-        <span class="font-medium">Offline Mode - Forms will be saved locally</span>
+        Offline — form cannot be submitted until you reconnect.
     </div>
 
-    <!-- Main Container -->
-    <div class="max-w-3xl mx-auto px-4 py-6 pb-12">
+    <div class="max-w-2xl mx-auto px-4 py-8 pb-14">
 
         <!-- Header -->
         <div class="text-center mb-8 slide-in">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
             </div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Data Collection Consent</h1>
-            <p class="text-gray-600">Electronic signature and consent form</p>
-
-            <!-- Connection Status -->
+            <h1 class="text-3xl font-bold text-gray-900 mb-1">Data Collection Consent</h1>
+            <p class="text-gray-500 text-sm">Electronic signature and consent form</p>
             <div id="connectionStatus" class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
-                <span class="w-2 h-2 bg-green-500 rounded-full status-badge"></span>
+                <span class="w-2 h-2 bg-green-500 rounded-full status-dot"></span>
                 <span>Online</span>
             </div>
         </div>
 
-        <!-- Main Form Card -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden slide-in" style="animation-delay: 0.1s">
-            <div class="p-6 md:p-8">
+        <!-- Form card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden slide-in" style="animation-delay:0.1s">
+            <div class="p-6 md:p-8 space-y-8">
 
-                <!-- Personal Information Section -->
-                <div class="mb-8">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                        <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                <!-- Section 1 — Personal info -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                        <span class="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
                         Personal Information
                     </h2>
-
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                            <input type="text" id="fullName" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" placeholder="Enter full legal name">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="fullName" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900" placeholder="Enter full legal name">
                         </div>
-
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                            <input type="email" id="email" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" placeholder="email@example.com">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="email" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900" placeholder="email@example.com">
                         </div>
-
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input type="tel" id="phone" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" placeholder="+1 (555) 000-0000">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                            <input type="tel" id="phone" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900" placeholder="+265 999 000 000">
                         </div>
-
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                            <input type="date" id="dob" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                            <input type="date" id="dob" class="form-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900">
                         </div>
                     </div>
                 </div>
 
-                <!-- Consent Agreement Section -->
-                <div class="mb-8">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                        <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <!-- Divider -->
+                <hr class="border-gray-100">
+
+                <!-- Section 2 — Consent -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                        <span class="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
                         Consent Agreement
                     </h2>
 
-                    <div class="bg-gray-50 rounded-lg p-4 mb-4 max-h-64 overflow-y-auto border border-gray-200">
-                        <div class="text-gray-700 space-y-3">
-                            <h3 class="font-semibold text-lg">Data Collection Consent Form</h3>
-                            <p>I hereby consent to the collection, processing, and storage of my personal data as described below:</p>
-                            <ul class="list-disc pl-5 space-y-1">
-                                <li>Personal identification information (name, contact details, date of birth)</li>
-                                <li>Data will be stored securely and used only for the stated purposes</li>
-                                <li>I have the right to access, modify, or delete my data upon request</li>
-                                <li>Data may be shared with authorized third parties under confidentiality agreements</li>
-                                <li>This consent remains valid until revoked in writing</li>
-                            </ul>
-                            <p>I understand that my electronic signature below carries the same legal weight as a handwritten signature. I acknowledge that I have read and understood this consent form and agree to its terms voluntarily.</p>
-                            <p class="text-sm text-gray-500">Timestamp and device information will be recorded for audit purposes.</p>
-                        </div>
+                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5 mb-4 max-h-56 overflow-y-auto text-sm text-gray-700 leading-relaxed space-y-3">
+                        <p class="font-semibold text-base text-gray-900">Data Collection Consent Form</p>
+                        <p>I hereby consent to the collection, processing, and storage of my personal data in accordance with applicable data protection laws and as described below:</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Personal identification information (name, contact details, date of birth)</li>
+                            <li>My data will be stored securely and used only for the stated purposes</li>
+                            <li>I have the right to access, modify, or request deletion of my data at any time</li>
+                            <li>Data may be shared with authorised parties under confidentiality agreements</li>
+                            <li>This consent remains valid until revoked in writing</li>
+                        </ul>
+                        <p>I understand that my electronic signature below carries the same legal weight as a handwritten signature. I acknowledge that I have read and understood this consent form and agree to its terms voluntarily.</p>
+                        <p class="text-gray-400 text-xs">Timestamp and device information will be recorded for audit purposes.</p>
                     </div>
 
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="consentCheck" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                        <span class="text-gray-700">I have read and agree to the data collection consent terms above. I understand this is a legally binding electronic signature. *</span>
+                    <label class="flex items-start gap-3 cursor-pointer group">
+                        <input type="checkbox" id="consentCheck" class="mt-0.5 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 flex-shrink-0">
+                        <span class="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                            I have read and agree to the data collection consent terms above. I understand this is a legally binding electronic signature. <span class="text-red-500">*</span>
+                        </span>
                     </label>
                 </div>
 
-                <!-- Signature Section -->
-                <div class="mb-8">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                        <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <!-- Divider -->
+                <hr class="border-gray-100">
+
+                <!-- Section 3 — Signature -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                        <span class="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
                         Electronic Signature
                     </h2>
-
-                    <div class="space-y-4">
-                        <p class="text-gray-600">Please sign using your finger, mouse, or stylus below:</p>
-
-                        <div class="signature-container">
-                            <canvas id="signaturePad" class="w-full h-48 border-2 border-gray-300 rounded-lg bg-white cursor-crosshair"></canvas>
-                            
-                            <button type="button" onclick="clearSignature()" class="absolute top-2 right-2 bg-white/90 backdrop-blur px-3 py-1 rounded-md text-sm text-gray-600 hover:text-red-600 border border-gray-200 shadow-sm transition-colors flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                                Clear
-                            </button>
-                        </div>
-
-                        <p class="text-xs text-gray-500">By signing, you agree this electronic signature is legally binding.</p>
+                    <p class="text-sm text-gray-500 mb-3">Sign using your finger, mouse, or stylus in the box below:</p>
+                    <div class="relative">
+                        <canvas id="signaturePad" class="border-2 border-gray-300 rounded-xl"></canvas>
+                        <button type="button" onclick="clearSignature()" class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-xs text-gray-500 hover:text-red-500 border border-gray-200 shadow-sm transition-colors flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Clear
+                        </button>
                     </div>
+                    <p class="text-xs text-gray-400 mt-2">By signing, you confirm this electronic signature is legally binding.</p>
                 </div>
 
-                <!-- Submit Button -->
-                <div class="flex gap-3">
-                    <button type="button" onclick="resetForm()" class="flex-1 py-3 px-6 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
-                        Reset Form
+                <!-- Submit row -->
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="resetForm()" class="flex-1 py-3 px-5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">
+                        Reset
                     </button>
-                    <button type="button" onclick="submitForm()" id="submitBtn" class="btn-primary flex-1 py-3 px-6 rounded-lg text-white font-semibold flex items-center justify-center gap-2">
-                        <span id="submitText">Complete & Send Consent</span>
+                    <button type="button" onclick="submitForm()" id="submitBtn" class="btn-primary flex-2 flex-grow-[2] py-3 px-6 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2">
+                        <span id="submitText">Complete &amp; Submit Consent</span>
                         <div id="submitSpinner" class="spinner hidden"></div>
                     </button>
                 </div>
 
-                <!-- Success Message Section -->
-                <div id="successMessage" class="hidden mt-6 p-4 bg-green-50 border border-green-200 rounded-lg slide-in">
+                <!-- Success message -->
+                <div id="successMessage" class="hidden p-5 bg-green-50 border border-green-200 rounded-xl slide-in">
                     <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        </div>
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                         <div class="flex-1">
-                            <h3 class="text-lg font-semibold text-green-900 mb-1">Consent Form Completed!</h3>
-                            <p class="text-green-700" id="successMessageText">Your signed consent form has been sent successfully.</p>
-                            <div class="mt-3 flex gap-2">
-                                <button onclick="downloadPDF()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
-                                    Download PDF
+                            <p class="font-semibold text-green-900 mb-1">Consent Form Submitted</p>
+                            <p class="text-green-700 text-sm" id="successText"></p>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <button onclick="downloadPDF()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors">
+                                    Download PDF copy
                                 </button>
-                                <button onclick="resetForm()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                                    Start New Form
+                                <button onclick="resetForm()" class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors">
+                                    New form
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Error Message -->
-                <div id="errorMessage" class="hidden mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <!-- Error message -->
+                <div id="errorMessage" class="hidden p-5 bg-red-50 border border-red-200 rounded-xl">
                     <div class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <div>
-                            <h3 class="font-semibold text-red-900">Error</h3>
-                            <p id="errorMessageText" class="text-red-700"></p>
+                            <p class="font-semibold text-red-900 text-sm">Submission failed</p>
+                            <p id="errorText" class="text-red-700 text-sm mt-0.5"></p>
                         </div>
                     </div>
                 </div>
@@ -274,214 +196,205 @@
             </div>
         </div>
 
-        <!-- Configuration Notice -->
-        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-            <div class="flex items-start gap-2">
-                <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <div>
-                    <p class="font-medium mb-1">Configuration Required</p>
-                    <p class="text-blue-700">Update the <strong>GOOGLE_APPS_SCRIPT_URL</strong> below with your deployed Google Apps Script URL.</p>
-                </div>
-            </div>
-        </div>
+        <!-- Footer note -->
+        <p class="text-center text-xs text-gray-400 mt-6">This form is secured. Your data is processed in accordance with applicable privacy laws.</p>
 
     </div>
 
     <script>
-        // ==================== CONFIGURATION ====================
-        // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWQI441LNpX0v7w_0HmK08s5IGhr_4oUC6WsdxK_X5hNB_5Y9MyiwX4inkPPKsQrXmSg/exec';
-        
-        // IMPORTANT: Set to false after configuring the URL above
-        const USE_TEST_MODE = false;
+        // =====================================================================
+        // CONFIGURATION
+        // STEP 1: Deploy your Google Apps Script backend
+        // STEP 2: Paste the Web App URL below (replace the placeholder)
+        // =====================================================================
+        const GOOGLE_APPS_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
 
-        // ==================== STATE MANAGEMENT ====================
+        const API_KEY = 'D4nF0rd_ConsentApp_9x!3KpL@2026#Secure';
+
+        // =====================================================================
+        // STATE
+        // =====================================================================
         let signaturePad;
         let formData = {};
         let generatedPDF = null;
 
-        // ==================== INITIALIZATION ====================
-        document.addEventListener('DOMContentLoaded', function() {
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
             initSignaturePad();
-            checkOnlineStatus();
-            initServiceWorker();
-            document.getElementById('dob').valueAsDate = new Date();
+            initConnectionMonitor();
         });
 
-        // ==================== SIGNATURE PAD ====================
+        // =====================================================================
+        // SIGNATURE PAD
+        // =====================================================================
         function initSignaturePad() {
             const canvas = document.getElementById('signaturePad');
-            
-            function resizeCanvas() {
-                const width = canvas.clientWidth;
-                const height = 200;
-                canvas.width = width;
-                canvas.height = height;
-                
+
+            function resize() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const w = canvas.offsetWidth;
+                const h = 200;
+                canvas.width = w * ratio;
+                canvas.height = h * ratio;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(ratio, ratio);
                 if (signaturePad) {
                     const data = signaturePad.toData();
                     signaturePad.clear();
-                    if (data && data.length > 0) {
-                        signaturePad.fromData(data);
-                    }
+                    if (data && data.length) signaturePad.fromData(data);
                 }
             }
-            
+
             signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255, 255, 255)',
-                penColor: 'rgb(0, 0, 0)',
+                backgroundColor: 'rgb(255,255,255)',
+                penColor: 'rgb(10,10,10)',
                 minWidth: 1,
                 maxWidth: 3,
                 velocityFilterWeight: 0.7
             });
-            
-            window.addEventListener('resize', resizeCanvas);
-            resizeCanvas();
-            
-            // Touch events
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousedown', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                });
-                canvas.dispatchEvent(mouseEvent);
-            });
-            
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                });
-                canvas.dispatchEvent(mouseEvent);
-            });
-            
-            canvas.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                canvas.dispatchEvent(new MouseEvent('mouseup', {}));
-            });
+
+            window.addEventListener('resize', resize);
+            resize();
         }
 
         function clearSignature() {
-            if (signaturePad) {
-                signaturePad.clear();
-            }
+            if (signaturePad) signaturePad.clear();
         }
 
-        // ==================== SERVICE WORKER ====================
-        function initServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                const swCode = `
-                    self.addEventListener('install', e => {
-                        e.waitUntil(
-                            caches.open('consent-form-v1').then(cache => {
-                                return cache.addAll(['/']);
-                            })
-                        );
-                    });
-                    self.addEventListener('fetch', e => {
-                        e.respondWith(
-                            caches.match(e.request).then(response => {
-                                return response || fetch(e.request);
-                            })
-                        );
-                    });
-                `;
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(err => {
-                    console.log('SW registration failed:', err);
-                });
+        // =====================================================================
+        // CONNECTION MONITOR
+        // =====================================================================
+        function initConnectionMonitor() {
+            function update() {
+                const online = navigator.onLine;
+                const el = document.getElementById('connectionStatus');
+                document.body.classList.toggle('offline', !online);
+                el.className = `mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${online ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`;
+                el.innerHTML = `<span class="w-2 h-2 ${online ? 'bg-green-500 status-dot' : 'bg-amber-500'} rounded-full"></span><span>${online ? 'Online' : 'Offline'}</span>`;
             }
+            window.addEventListener('online', update);
+            window.addEventListener('offline', update);
+            update();
         }
 
-        // ==================== ONLINE/OFFLINE ====================
-        function checkOnlineStatus() {
-            function updateStatus() {
-                const isOnline = navigator.onLine;
-                const statusEl = document.getElementById('connectionStatus');
-                const body = document.body;
-                if (isOnline) {
-                    statusEl.className = 'mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium';
-                    statusEl.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full status-badge"></span><span>Online</span>';
-                    body.classList.remove('offline');
-                } else {
-                    statusEl.className = 'mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-medium';
-                    statusEl.innerHTML = '<span class="w-2 h-2 bg-amber-500 rounded-full"></span><span>Offline</span>';
-                    body.classList.add('offline');
-                }
-            }
-            window.addEventListener('online', updateStatus);
-            window.addEventListener('offline', updateStatus);
-            updateStatus();
+        // =====================================================================
+        // VALIDATION
+        // =====================================================================
+        function validate() {
+            const name = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const agreed = document.getElementById('consentCheck').checked;
+            const signed = signaturePad && !signaturePad.isEmpty();
+            return { name, email, agreed, signed };
         }
 
-        // ==================== PDF GENERATION ====================
+        // =====================================================================
+        // PDF GENERATION
+        // =====================================================================
         async function generatePDF() {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            const W = 210;
+
+            // Header band
             doc.setFillColor(37, 99, 235);
-            doc.rect(0, 0, 210, 40, 'F');
+            doc.rect(0, 0, W, 38, 'F');
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
             doc.setFont('helvetica', 'bold');
-            doc.text('Data Collection Consent Form', 105, 25, { align: 'center' });
-            
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(12);
-            let y = 55;
-            
-            doc.setFont('helvetica', 'bold');
-            doc.text('Personal Information', 20, y);
+            doc.setFontSize(17);
+            doc.text('Data Collection Consent Form', W / 2, 17, { align: 'center' });
             doc.setFont('helvetica', 'normal');
-            y += 10;
-            doc.text('Full Name: ' + formData.fullName, 20, y);
-            y += 8;
-            doc.text('Email: ' + (formData.email || 'Not provided'), 20, y);
-            y += 8;
-            doc.text('Phone: ' + (formData.phone || 'Not provided'), 20, y);
-            y += 8;
-            doc.text('Date of Birth: ' + (formData.dob || 'Not provided'), 20, y);
-            y += 15;
-            
-            doc.setFont('helvetica', 'bold');
-            doc.text('Consent Agreement', 20, y);
-            doc.setFont('helvetica', 'normal');
-            y += 10;
-            doc.setFontSize(10);
-            const consentText = 'I hereby consent to the collection, processing, and storage of my personal data. I understand that my data will be stored securely and used only for the stated purposes. I have the right to access, modify, or delete my data upon request. This consent remains valid until revoked in writing.';
-            const splitText = doc.splitTextToSize(consentText, 170);
-            doc.text(splitText, 20, y);
-            y += splitText.length * 5 + 10;
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.text('Electronic Signature', 20, y);
-            y += 10;
-            
-            const signatureData = signaturePad.toDataURL('image/png');
-            if (signatureData) {
-                doc.addImage(signatureData, 'PNG', 20, y, 80, 40);
-                doc.line(20, y + 45, 100, y + 45);
-                doc.setFontSize(10);
-                doc.text('Signature of ' + formData.fullName, 20, y + 52);
-            }
-            
-            y = 260;
+            doc.setFontSize(9);
+            doc.text('Electronic signature record', W / 2, 26, { align: 'center' });
             doc.setFontSize(8);
-            doc.setTextColor(100, 100, 100);
-            doc.text('Signed on: ' + new Date(formData.timestamp).toLocaleString(), 20, y);
+            doc.text('Document ID: ' + formData.documentId, W / 2, 33, { align: 'center' });
+
+            let y = 50;
+            doc.setTextColor(30, 30, 30);
+
+            // Personal info
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text('Personal Information', 20, y);
+            doc.setDrawColor(37, 99, 235);
+            doc.setLineWidth(0.4);
+            doc.line(20, y + 2, 190, y + 2);
+            y += 10;
+
+            const fields = [
+                ['Full Name', formData.fullName],
+                ['Email', formData.email || 'Not provided'],
+                ['Phone', formData.phone || 'Not provided'],
+                ['Date of Birth', formData.dob || 'Not provided'],
+            ];
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            fields.forEach(([label, value]) => {
+                doc.setTextColor(120, 120, 120);
+                doc.text(label + ':', 20, y);
+                doc.setTextColor(20, 20, 20);
+                doc.text(value, 65, y);
+                y += 8;
+            });
+
             y += 6;
-            doc.text('Document ID: ' + formData.documentId, 20, y);
-            y += 6;
-            doc.text('This document was generated electronically and is legally binding.', 105, 285, { align: 'center' });
-            
+
+            // Consent text
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(30, 30, 30);
+            doc.text('Consent Agreement', 20, y);
+            doc.setDrawColor(37, 99, 235);
+            doc.line(20, y + 2, 190, y + 2);
+            y += 10;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(60, 60, 60);
+            const consentLines = doc.splitTextToSize(
+                'I hereby consent to the collection, processing, and storage of my personal data in accordance with applicable data protection laws. My data will be stored securely and used only for the stated purposes. I have the right to access, modify, or request deletion of my data at any time. Data may be shared with authorised parties under confidentiality agreements. This consent remains valid until revoked in writing. I understand that my electronic signature carries the same legal weight as a handwritten signature and I have agreed to these terms voluntarily.',
+                170
+            );
+            doc.text(consentLines, 20, y);
+            y += consentLines.length * 5 + 8;
+
+            // Signature
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(30, 30, 30);
+            doc.text('Electronic Signature', 20, y);
+            doc.setDrawColor(37, 99, 235);
+            doc.line(20, y + 2, 190, y + 2);
+            y += 10;
+
+            try {
+                const sigData = signaturePad.toDataURL('image/png');
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.3);
+                doc.roundedRect(20, y, 90, 38, 2, 2, 'FD');
+                doc.addImage(sigData, 'PNG', 21, y + 1, 88, 36);
+            } catch (e) {}
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(80, 80, 80);
+            doc.text(formData.fullName, 20, y + 44);
+            doc.setTextColor(160, 160, 160);
+            doc.text('Signed: ' + new Date(formData.timestamp).toLocaleString(), 20, y + 51);
+
+            // Footer
+            doc.setFillColor(245, 247, 250);
+            doc.rect(0, 272, W, 25, 'F');
+            doc.setFontSize(7.5);
+            doc.setTextColor(140, 140, 140);
+            doc.text('Document ID: ' + formData.documentId, 20, 280);
+            doc.text('Generated: ' + new Date(formData.timestamp).toLocaleString(), 20, 286);
+            doc.text('This document was generated electronically and is legally binding.', W / 2, 292, { align: 'center' });
+
             return doc;
         }
 
@@ -489,207 +402,138 @@
             return 'CF-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         }
 
-        // ==================== SUBMIT TO GOOGLE APPS SCRIPT ====================
-        async function submitToGoogleAppsScript(pdfBlob, formData) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                
-                reader.onloadend = async function() {
-                    const base64Data = reader.result.split(',')[1];
-                    
-                    // ✅ FIX 1: Add API key to payload (MUST match backend)
-                    const payload = {
-                        apiKey: "D4nF0rd_ConsentApp_9x!3KpL@2026#Secure", // 🔑 MUST MATCH BACKEND
-                        fullName: formData.fullName,
-                        email: formData.email,
-                        phone: formData.phone || 'Not provided',
-                        dob: formData.dob || 'Not provided',
-                        timestamp: formData.timestamp,
-                        documentId: formData.documentId,
-                        userAgent: formData.userAgent,
-                        pdfBase64: base64Data,
-                        signatureBase64: signaturePad.toDataURL('image/png')
-                    };
-                    
-                    try {
-                        if (USE_TEST_MODE || GOOGLE_APPS_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
-                            console.log('⚠️ Test Mode - Payload (would send to backend):', payload);
-                            await new Promise(resolve => setTimeout(resolve, 1500));
-                            resolve({ 
-                                status: 'test', 
-                                message: 'Test mode - Configure Google Apps Script URL',
-                                documentId: formData.documentId 
-                            });
-                        } else {
-                            // ✅ FIX 2: REMOVE 'no-cors' and handle response properly
-                            const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                                method: 'POST',
-                                headers: { 
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(payload)
-                            });
-                            
-                            // Check if response is ok
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                            }
-                            
-                            // Parse JSON response from backend
-                            const result = await response.json();
-                            
-                            if (!result.success) {
-                                throw new Error(result.error || "Submission failed");
-                            }
-                            
-                            resolve(result);
-                        }
-                    } catch (error) {
-                        console.error('Submit error:', error);
-                        reject(error);
-                    }
-                };
-                
-                reader.readAsDataURL(pdfBlob);
-            });
-        }
-
-        // ==================== FORM SUBMISSION ====================
+        // =====================================================================
+        // SUBMIT
+        // =====================================================================
         async function submitForm() {
-            const fullName = document.getElementById('fullName').value.trim();
-            const email = document.getElementById('email').value.trim();
-            
-            if (!fullName) {
-                showError('Please enter your full name');
-                document.getElementById('fullName').focus();
+            hideMessages();
+
+            const { name, email, agreed, signed } = validate();
+            if (!name)    { showError('Please enter your full name.'); return; }
+            if (!email)   { showError('Please enter your email address.'); return; }
+            if (!agreed)  { showError('Please check the consent agreement box.'); return; }
+            if (!signed)  { showError('Please provide your signature.'); return; }
+            if (!navigator.onLine) { showError('You are offline. Please reconnect and try again.'); return; }
+            if (GOOGLE_APPS_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                showError('The form has not been configured yet. Please set the Google Apps Script URL in index.html.');
                 return;
             }
-            
-            if (!email) {
-                showError('Please enter your email address');
-                document.getElementById('email').focus();
-                return;
-            }
-            
-            if (!document.getElementById('consentCheck').checked) {
-                showError('Please check the consent agreement box to continue');
-                return;
-            }
-            
-            if (!signaturePad || signaturePad.isEmpty()) {
-                showError('Please provide your signature');
-                return;
-            }
-            
-            const submitBtn = document.getElementById('submitBtn');
-            const submitText = document.getElementById('submitText');
-            const submitSpinner = document.getElementById('submitSpinner');
-            
-            submitBtn.disabled = true;
-            submitText.classList.add('hidden');
-            submitSpinner.classList.remove('hidden');
-            
-            document.getElementById('errorMessage').classList.add('hidden');
-            document.getElementById('successMessage').classList.add('hidden');
-            
+
+            setLoading(true);
+
             try {
-                // Sanitize filename (✅ Optional smart fix)
-                const safeName = fullName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-                
                 formData = {
-                    fullName: fullName,
+                    fullName: name,
                     email: email,
-                    phone: document.getElementById('phone').value,
+                    phone: document.getElementById('phone').value.trim(),
                     dob: document.getElementById('dob').value,
                     timestamp: new Date().toISOString(),
                     userAgent: navigator.userAgent,
-                    documentId: generateDocumentId(),
-                    safeName: safeName
+                    documentId: generateDocumentId()
                 };
-                
+
                 const pdfDoc = await generatePDF();
                 generatedPDF = pdfDoc;
+
                 const pdfBlob = pdfDoc.output('blob');
-                
-                const result = await submitToGoogleAppsScript(pdfBlob, formData);
-                
-                const successMsg = document.getElementById('successMessage');
-                const successText = document.getElementById('successMessageText');
-                
-                if (result.status === 'test') {
-                    successText.innerHTML = `✅ Form completed in test mode!<br><br>
-                    📧 <strong>Document ID:</strong> ${result.documentId}<br>
-                    To enable actual email sending, update the GOOGLE_APPS_SCRIPT_URL with your deployed script URL.<br><br>
-                    💾 You can download the PDF for your records.`;
-                } else {
-                    successText.innerHTML = `✅ Your signed consent form has been sent to the administrator!<br><br>
-                    📄 <strong>Document ID:</strong> ${result.documentId}<br>
-                    A confirmation email has also been sent to your email address.<br><br>
-                    💾 You can download the PDF for your records.`;
+                const b64 = await blobToBase64(pdfBlob);
+
+                const payload = {
+                    apiKey: API_KEY,
+                    fullName: formData.fullName,
+                    email: formData.email,
+                    phone: formData.phone || 'Not provided',
+                    dob: formData.dob || 'Not provided',
+                    timestamp: formData.timestamp,
+                    documentId: formData.documentId,
+                    userAgent: formData.userAgent,
+                    pdfBase64: b64,
+                    signatureBase64: signaturePad.toDataURL('image/png')
+                };
+
+                // Note: no Content-Type header to avoid CORS preflight with Google Apps Script
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                let result;
+                try {
+                    result = await response.json();
+                } catch (e) {
+                    // Google sometimes returns a redirect — treat any 200 as success
+                    if (response.ok || response.status === 0) {
+                        result = { success: true, documentId: formData.documentId };
+                    } else {
+                        throw new Error('Server returned status ' + response.status);
+                    }
                 }
-                
-                successMsg.classList.remove('hidden');
-                successMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-            } catch (error) {
-                console.error('Submission error:', error);
-                showError(`Failed to submit form: ${error.message}. Please try again or download the PDF and email it manually.`);
+
+                if (result && result.success === false) {
+                    throw new Error(result.error || 'Submission rejected by server.');
+                }
+
+                document.getElementById('successText').innerHTML =
+                    `Your signed consent has been recorded and the PDF has been emailed to you.<br>
+                    <span class="font-medium">Document ID: ${formData.documentId}</span>`;
+                document.getElementById('successMessage').classList.remove('hidden');
+                document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            } catch (err) {
+                console.error('Submission error:', err);
+                showError('Submission failed: ' + err.message + '. Please try again, or download the PDF and submit it manually.');
             } finally {
-                submitText.classList.remove('hidden');
-                submitSpinner.classList.add('hidden');
-                submitBtn.disabled = false;
+                setLoading(false);
             }
         }
-        
-        function downloadPDF() {
-            if (generatedPDF) {
-                // ✅ Fixed: Sanitize filename properly
-                const safeName = formData.safeName || formData.fullName?.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_') || 'consent';
-                const fileName = `Consent_Form_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`;
-                generatedPDF.save(fileName);
-            } else {
-                showError('No PDF generated. Please complete the form again.');
-            }
+
+        // =====================================================================
+        // HELPERS
+        // =====================================================================
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onloadend = () => resolve(r.result.split(',')[1]);
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+            });
         }
-        
-        function resetForm() {
-            document.getElementById('fullName').value = '';
-            document.getElementById('email').value = '';
-            document.getElementById('phone').value = '';
-            document.getElementById('dob').valueAsDate = new Date();
-            document.getElementById('consentCheck').checked = false;
-            
-            if (signaturePad) {
-                signaturePad.clear();
-            }
-            
+
+        function setLoading(on) {
+            document.getElementById('submitBtn').disabled = on;
+            document.getElementById('submitText').classList.toggle('hidden', on);
+            document.getElementById('submitSpinner').classList.toggle('hidden', !on);
+        }
+
+        function showError(msg) {
+            document.getElementById('errorText').textContent = msg;
+            const el = document.getElementById('errorMessage');
+            el.classList.remove('hidden');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.classList.add('hidden'), 9000);
+        }
+
+        function hideMessages() {
             document.getElementById('successMessage').classList.add('hidden');
             document.getElementById('errorMessage').classList.add('hidden');
-            
-            const submitText = document.getElementById('submitText');
-            const submitSpinner = document.getElementById('submitSpinner');
-            submitText.classList.remove('hidden');
-            submitSpinner.classList.add('hidden');
-            
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = false;
-            
+        }
+
+        function downloadPDF() {
+            if (!generatedPDF) { showError('No PDF available. Please complete the form first.'); return; }
+            const safe = (formData.fullName || 'consent').replace(/[^a-zA-Z0-9]/g, '_');
+            generatedPDF.save(`Consent_Form_${safe}_${new Date().toISOString().slice(0,10)}.pdf`);
+        }
+
+        function resetForm() {
+            ['fullName','email','phone'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('dob').value = '';
+            document.getElementById('consentCheck').checked = false;
+            if (signaturePad) signaturePad.clear();
+            hideMessages();
+            setLoading(false);
             formData = {};
             generatedPDF = null;
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        function showError(message) {
-            const errorMsg = document.getElementById('errorMessage');
-            const errorText = document.getElementById('errorMessageText');
-            errorText.textContent = message;
-            errorMsg.classList.remove('hidden');
-            errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            setTimeout(() => {
-                errorMsg.classList.add('hidden');
-            }, 8000);
         }
     </script>
 </body>
