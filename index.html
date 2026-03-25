@@ -35,37 +35,6 @@
 
         .offline-banner { display:none; }
         body.offline .offline-banner { display:flex; }
-        
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            backdrop-filter: blur(4px);
-        }
-        .loading-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-        }
-        .loading-spinner {
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid #2563eb;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem auto;
-        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -242,7 +211,7 @@
         // STATE
         // =====================================================================
         let signaturePad;
-        let formData = {};
+        let formData     = {};
         let generatedPDF = null;
 
         // =====================================================================
@@ -255,6 +224,20 @@
         });
 
         // =====================================================================
+        // DATE FORMATTING  →  DD-MMM-YYYY
+        // =====================================================================
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+                        'Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        function formatDate(value) {
+            const d   = (value instanceof Date) ? value : new Date(value);
+            const dd  = String(d.getDate()).padStart(2, '0');
+            const mmm = MONTHS[d.getMonth()];
+            const yyyy = d.getFullYear();
+            return `${dd}-${mmm}-${yyyy}`;
+        }
+
+        // =====================================================================
         // SIGNATURE PAD
         // =====================================================================
         function initSignaturePad() {
@@ -263,21 +246,18 @@
             function resizeCanvas() {
                 const width = canvas.clientWidth;
                 const height = 200;
-                canvas.width = width;
+                canvas.width  = width;
                 canvas.height = height;
-                
                 if (signaturePad) {
                     const data = signaturePad.toData();
                     signaturePad.clear();
-                    if (data && data.length > 0) {
-                        signaturePad.fromData(data);
-                    }
+                    if (data && data.length > 0) signaturePad.fromData(data);
                 }
             }
 
             signaturePad = new SignaturePad(canvas, {
                 backgroundColor: 'rgb(255,255,255)',
-                penColor: 'rgb(10,10,10)',
+                penColor:        'rgb(10,10,10)',
                 minWidth: 1,
                 maxWidth: 3,
                 velocityFilterWeight: 0.7
@@ -286,28 +266,17 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
 
-            // Touch events for mobile
-            canvas.addEventListener('touchstart', (e) => {
+            canvas.addEventListener('touchstart', e => {
                 e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousedown', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                });
-                canvas.dispatchEvent(mouseEvent);
+                const t = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
             });
-            
-            canvas.addEventListener('touchmove', (e) => {
+            canvas.addEventListener('touchmove', e => {
                 e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                });
-                canvas.dispatchEvent(mouseEvent);
+                const t = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY }));
             });
-            
-            canvas.addEventListener('touchend', (e) => {
+            canvas.addEventListener('touchend', e => {
                 e.preventDefault();
                 canvas.dispatchEvent(new MouseEvent('mouseup', {}));
             });
@@ -328,7 +297,7 @@
                 el.className = `mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${online ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`;
                 el.innerHTML = `<span class="w-2 h-2 ${online ? 'bg-green-500 status-dot' : 'bg-amber-500'} rounded-full"></span><span>${online ? 'Online' : 'Offline'}</span>`;
             }
-            window.addEventListener('online', update);
+            window.addEventListener('online',  update);
             window.addEventListener('offline', update);
             update();
         }
@@ -337,22 +306,22 @@
         // VALIDATION
         // =====================================================================
         function validate() {
-            const name = document.getElementById('fullName').value.trim();
-            const email = document.getElementById('email').value.trim();
+            const name   = document.getElementById('fullName').value.trim();
+            const email  = document.getElementById('email').value.trim();
             const agreed = document.getElementById('consentCheck').checked;
             const signed = signaturePad && !signaturePad.isEmpty();
             return { name, email, agreed, signed };
         }
 
         // =====================================================================
-        // PDF GENERATION
+        // PDF GENERATION  (dates as DD-MMM-YYYY)
         // =====================================================================
         async function generatePDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
             const W = 210;
 
-            // Header
+            // Header banner
             doc.setFillColor(37, 99, 235);
             doc.rect(0, 0, W, 38, 'F');
             doc.setTextColor(255, 255, 255);
@@ -368,7 +337,7 @@
             let y = 50;
             doc.setTextColor(30, 30, 30);
 
-            // Personal Info
+            // ── Personal Info ──
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.text('Personal Information', 20, y);
@@ -377,11 +346,13 @@
             doc.line(20, y + 2, 190, y + 2);
             y += 10;
 
+            const dobFormatted = formData.dob ? formatDate(formData.dob + 'T00:00:00') : 'Not provided';
+
             const fields = [
-                ['Full Name', formData.fullName],
-                ['Email', formData.email || 'Not provided'],
-                ['Phone', formData.phone || 'Not provided'],
-                ['Date of Birth', formData.dob || 'Not provided'],
+                ['Full Name',    formData.fullName],
+                ['Email',        formData.email        || 'Not provided'],
+                ['Phone',        formData.phone        || 'Not provided'],
+                ['Date of Birth', dobFormatted],
             ];
 
             doc.setFont('helvetica', 'normal');
@@ -396,7 +367,7 @@
 
             y += 6;
 
-            // Consent
+            // ── Consent ──
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(30, 30, 30);
@@ -415,7 +386,7 @@
             doc.text(consentLines, 20, y);
             y += consentLines.length * 5 + 8;
 
-            // Signature
+            // ── Signature ──
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(30, 30, 30);
@@ -433,20 +404,22 @@
                 doc.addImage(sigData, 'PNG', 21, y + 1, 88, 36);
             } catch (e) {}
 
+            const signedDateStr = formatDate(formData.timestamp);
+
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(80, 80, 80);
             doc.text(formData.fullName, 20, y + 44);
             doc.setTextColor(160, 160, 160);
-            doc.text('Signed: ' + new Date(formData.timestamp).toLocaleString(), 20, y + 51);
+            doc.text('Signed: ' + signedDateStr, 20, y + 51);
 
-            // Footer
+            // ── Footer ──
             doc.setFillColor(245, 247, 250);
             doc.rect(0, 272, W, 25, 'F');
             doc.setFontSize(7.5);
             doc.setTextColor(140, 140, 140);
             doc.text('Document ID: ' + formData.documentId, 20, 280);
-            doc.text('Generated: ' + new Date(formData.timestamp).toLocaleString(), 20, 286);
+            doc.text('Generated: ' + signedDateStr, 20, 286);
             doc.text('This document was generated electronically and is legally binding.', W / 2, 292, { align: 'center' });
 
             return doc;
@@ -457,67 +430,42 @@
         }
 
         // =====================================================================
-        // GENERATE SIGNATURE HASH
+        // SUBMIT TO GOOGLE APPS SCRIPT
+        // Sends application/x-www-form-urlencoded via no-cors fetch.
+        // URLSearchParams avoids CORS preflight; GAS reads fields via e.parameter.
         // =====================================================================
-        async function generateSignatureHash(formData) {
-            const hashString = formData.fullName + formData.email + formData.timestamp;
-            const encoder = new TextEncoder();
-            const data = encoder.encode(hashString);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
-        }
-
-        // =====================================================================
-        // SUBMIT TO GOOGLE APPS SCRIPT (FIXED CORS VERSION)
-        // =====================================================================
-        async function submitToGoogleAppsScript(pdfBlob, formData) {
-            return new Promise((resolve, reject) => {
+        async function submitToGoogleAppsScript(pdfBlob, fd) {
+            // Convert blob to base64
+            const base64Data = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                
-                reader.onloadend = async function() {
-                    const base64Data = reader.result.split(',')[1];
-                    const signatureHash = await generateSignatureHash(formData);
-                    
-                    // Create form data to avoid CORS preflight
-                    const formDataToSend = new FormData();
-                    formDataToSend.append('apiKey', API_KEY);
-                    formDataToSend.append('fullName', formData.fullName);
-                    formDataToSend.append('email', formData.email);
-                    formDataToSend.append('phone', formData.phone || 'Not provided');
-                    formDataToSend.append('dob', formData.dob || 'Not provided');
-                    formDataToSend.append('timestamp', formData.timestamp);
-                    formDataToSend.append('documentId', formData.documentId);
-                    formDataToSend.append('userAgent', formData.userAgent);
-                    formDataToSend.append('pdfBase64', base64Data);
-                    formDataToSend.append('signatureBase64', signaturePad.toDataURL('image/png'));
-                    formDataToSend.append('signatureHash', signatureHash);
-                    
-                    try {
-                        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                            method: 'POST',
-                            mode: 'no-cors', // Use no-cors mode for Google Apps Script
-                            body: formDataToSend
-                        });
-                        
-                        // With no-cors, we can't read the response, but we can assume success
-                        // The actual success will be confirmed via email
-                        // Add a small delay to simulate processing
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        
-                        resolve({ 
-                            success: true, 
-                            documentId: formData.documentId,
-                            message: 'Form submitted successfully'
-                        });
-                        
-                    } catch (error) {
-                        console.error('Submit error:', error);
-                        reject(error);
-                    }
-                };
-                
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror  = () => reject(new Error('Failed to read PDF blob'));
                 reader.readAsDataURL(pdfBlob);
             });
+
+            // Build URL-encoded body — GAS reliably parses this into e.parameter
+            const params = new URLSearchParams();
+            params.append('apiKey',     API_KEY);
+            params.append('fullName',   fd.fullName);
+            params.append('email',      fd.email);
+            params.append('phone',      fd.phone      || 'Not provided');
+            params.append('dob',        fd.dob        || 'Not provided');
+            params.append('timestamp',  fd.timestamp);
+            params.append('documentId', fd.documentId);
+            params.append('userAgent',  fd.userAgent);
+            params.append('pdfBase64',  base64Data);
+
+            await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode:   'no-cors',   // Avoids CORS preflight; response is opaque but request goes through
+                body:   params
+            });
+
+            // With no-cors we cannot read the response.
+            // A short delay gives the server time to finish before we report success.
+            await new Promise(r => setTimeout(r, 2500));
+
+            return { success: true, documentId: fd.documentId };
         }
 
         // =====================================================================
@@ -527,36 +475,37 @@
             hideMessages();
 
             const { name, email, agreed, signed } = validate();
-            if (!name)    { showError('Please enter your full name.'); return; }
-            if (!email)   { showError('Please enter your email address.'); return; }
-            if (!agreed)  { showError('Please check the consent agreement box.'); return; }
-            if (!signed)  { showError('Please provide your signature.'); return; }
+            if (!name)    { showError('Please enter your full name.');               return; }
+            if (!email)   { showError('Please enter your email address.');           return; }
+            if (!agreed)  { showError('Please check the consent agreement box.');    return; }
+            if (!signed)  { showError('Please provide your signature.');             return; }
             if (!navigator.onLine) { showError('You are offline. Please reconnect and try again.'); return; }
 
             setLoading(true);
 
             try {
                 formData = {
-                    fullName: name,
-                    email: email,
-                    phone: document.getElementById('phone').value.trim(),
-                    dob: document.getElementById('dob').value,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
+                    fullName:   name,
+                    email:      email,
+                    phone:      document.getElementById('phone').value.trim(),
+                    dob:        document.getElementById('dob').value,
+                    timestamp:  new Date().toISOString(),
+                    userAgent:  navigator.userAgent,
                     documentId: generateDocumentId()
                 };
 
-                const pdfDoc = await generatePDF();
-                generatedPDF = pdfDoc;
-                const pdfBlob = pdfDoc.output('blob');
-                
-                const result = await submitToGoogleAppsScript(pdfBlob, formData);
+                const pdfDoc     = await generatePDF();
+                generatedPDF     = pdfDoc;
+                const pdfBlob    = pdfDoc.output('blob');
+                const result     = await submitToGoogleAppsScript(pdfBlob, formData);
+                const signedDate = formatDate(formData.timestamp);
 
                 document.getElementById('successText').innerHTML = `
                     ✅ Your signed consent has been recorded successfully!<br><br>
                     📄 <strong>Document ID:</strong> ${result.documentId}<br>
+                    📅 <strong>Signed:</strong> ${signedDate}<br>
                     📧 A confirmation email has been sent to ${formData.email}<br><br>
-                    💾 You can download the PDF copy for your records.
+                    💾 Download the PDF copy for your records.
                 `;
                 document.getElementById('successMessage').classList.remove('hidden');
                 document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -592,24 +541,22 @@
         }
 
         function downloadPDF() {
-            if (!generatedPDF) { 
-                showError('No PDF available. Please complete the form first.'); 
-                return; 
-            }
+            if (!generatedPDF) { showError('No PDF available. Please complete the form first.'); return; }
             const safe = (formData.fullName || 'consent').replace(/[^a-zA-Z0-9]/g, '_');
-            generatedPDF.save(`Consent_Form_${safe}_${new Date().toISOString().slice(0,10)}.pdf`);
+            const date = formatDate(formData.timestamp).replace(/-/g, '');
+            generatedPDF.save(`Consent_Form_${safe}_${date}.pdf`);
         }
 
         function resetForm() {
-            document.getElementById('fullName').value = '';
-            document.getElementById('email').value = '';
-            document.getElementById('phone').value = '';
-            document.getElementById('dob').value = '';
+            document.getElementById('fullName').value   = '';
+            document.getElementById('email').value      = '';
+            document.getElementById('phone').value      = '';
+            document.getElementById('dob').value        = '';
             document.getElementById('consentCheck').checked = false;
             if (signaturePad) signaturePad.clear();
             hideMessages();
             setLoading(false);
-            formData = {};
+            formData     = {};
             generatedPDF = null;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
